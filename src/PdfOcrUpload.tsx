@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Tesseract from "tesseract.js";
-import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
+import { Button } from "./components/ui/button";
+import { Progress } from "./components/ui/progress";
 
 interface ParsedItem {
   artikelnummer: string;
@@ -117,4 +117,3 @@ export default function PdfOcrUpload() {
     </div>
   );
 }
-
