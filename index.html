@@ -63,6 +63,7 @@
     <h2>📥 Schritt 1: Stückliste hochladen</h2>
     <input type="file" id="pdfInput" accept="application/pdf" />
     <div id="status1"></div>
+<div id="previewContainer" style="display: none;"></div>
 <div id="ocrPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div>
 <div id="csvPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div></div>
     <progress id="ocrProgress" value="0" max="100" style="width: 100%; display: none; margin-top: 0.5rem;"></progress>
@@ -235,8 +236,10 @@ let currentPage = 0;
       document.getElementById("ocrPreview").textContent = combinedText;
       let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge
 ";
+";
       for (const [neu, val] of Object.entries(artikelDaten)) {
         csvOutput += `${neu};${val.alt};${val.name};${val.menge}
+`;
 `;
       }
       document.getElementById("csvPreview").textContent = csvOutput;
