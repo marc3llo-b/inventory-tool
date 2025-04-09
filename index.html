@@ -240,6 +240,7 @@ let currentPage = 0;
         csvOutput += `${neu};${val.alt};${val.name};${val.menge}
 `;
       }
+      document.getElementById("csvPreview").style.display = "block";
       document.getElementById("csvPreview").textContent = csvOutput;
       document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
       progress.value = 100;
