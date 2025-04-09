@@ -64,8 +64,8 @@
     <input type="file" id="pdfInput" accept="application/pdf" />
     <div id="status1"></div>
 <div id="previewContainer" style="display: none;"></div>
-<div id="ocrPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div>
-<div id="csvPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div></div>
+<div id="ocrPreview" style="display:none; margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div>
+<div id="csvPreview" style="display:none; margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div></div>
     <progress id="ocrProgress" value="0" max="100" style="width: 100%; display: none; margin-top: 0.5rem;"></progress>
     <div id="ocrText" style="display: none;"></div>
     <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
@@ -224,21 +224,27 @@ for (let i = 1; i <= totalPages; i++) {
   canvas.width = viewport.width;
   await page.render({ canvasContext: context, viewport }).promise;
   const { data: { text } } = await worker.recognize(canvas);
-  combinedText += text + "\\n";
+  combinedText += text + "\n";
 }
 
 await worker.terminate();
 
 document.getElementById("ocrText").textContent = combinedText;
-document.getElementById("ocrPreview").textContent = combinedText;
+if (combinedText.trim()) {
+  document.getElementById("ocrPreview").textContent = combinedText;
+  document.getElementById("ocrPreview").style.display = "block";
+}
 document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
 progress.value = 100;
 progress.style.display = "none";
 document.getElementById("weiterButton").disabled = false;
 
-let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge\\n";
+let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge\n";
 for (const [neu, val] of Object.entries(artikelDaten)) {
-  csvOutput += `${neu};${val.alt};${val.name};${val.menge}\\n`;
+  csvOutput += `${neu};${val.alt};${val.name};${val.menge}\n`;
 }
 document.getElementById("csvPreview").style.display = "block";
-document.getElementById("csvPreview").textContent = csvOutput;
+if (csvOutput.trim()) {
+  document.getElementById("csvPreview").textContent = csvOutput;
+  document.getElementById("csvPreview").style.display = "block";
+}
