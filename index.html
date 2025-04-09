@@ -63,6 +63,7 @@
     <h2>📥 Schritt 1: Stückliste hochladen</h2>
     <input type="file" id="pdfInput" accept="application/pdf" />
     <div id="status1"></div>
+<div id="previewContainer"></div>
 <label><input type="checkbox" id="togglePreview" checked> Vorschau anzeigen</label>
 <div id="csvPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px; display:none;"></div>
 <script>
@@ -200,7 +201,7 @@ const pdfInput = document.getElementById("pdfInput");
           if (m.status === 'recognizing text' && m.progress !== undefined) {
             const percent = Math.round(m.progress * 100);
             progress.value = percent;
-            document.getElementById("status1").textContent = `Texterkennung: ${percent}% auf Seite ${currentPage}`;
+            document.getElementById("status1").textContent = `Texterkennung: ${percent}%`;
           }
         }
       });
