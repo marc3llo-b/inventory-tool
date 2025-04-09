@@ -64,7 +64,7 @@
     <input type="file" id="pdfInput" accept="application/pdf" />
     <div id="status1"></div>
 <label><input type="checkbox" id="togglePreview" checked> Vorschau anzeigen</label>
-<div id="previewContainer"></div>
+<div id="csvPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px; display:none;"></div>
     <progress id="ocrProgress" value="0" max="100" style="width: 100%; display: none; margin-top: 0.5rem;"></progress>
     <div id="ocrText" style="display: none;"></div>
     <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
@@ -232,6 +232,14 @@ let currentPage = 0;
       await worker.terminate();
 
       document.getElementById("ocrText").textContent = combinedText;
+      document.getElementById("csvPreview").style.display = "block";
+      let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge
+";
+      for (const [neu, val] of Object.entries(artikelDaten)) {
+        csvOutput += `${neu};${val.alt};${val.name};${val.menge}
+`;
+      }
+      document.getElementById("csvPreview").textContent = csvOutput;
       document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
       progress.value = 100;
       setTimeout(() => progress.style.display = 'none', 1500);
