@@ -236,10 +236,8 @@ let currentPage = 0;
       document.getElementById("ocrPreview").textContent = combinedText;
       let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge
 ";
-";
       for (const [neu, val] of Object.entries(artikelDaten)) {
         csvOutput += `${neu};${val.alt};${val.name};${val.menge}
-`;
 `;
       }
       document.getElementById("csvPreview").textContent = csvOutput;
