@@ -2,8 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: write
@@ -21,10 +20,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: '18'
 
       - name: Install dependencies
         run: npm install
@@ -32,8 +31,11 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Upload to GitHub Pages
-        uses: actions/deploy-pages@v2
-        id: deployment
+      - name: Upload build
+        uses: actions/upload-pages-artifact@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
