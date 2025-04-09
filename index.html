@@ -1,106 +1,244 @@
-// src/App.tsx
-import React, { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Download, Mic, Upload } from "lucide-react";
-import { saveAs } from "file-saver";
-
-const mockOCR = async (file: File): Promise<string> => {
-  return new Promise((resolve) => setTimeout(() => resolve("Artikel 101178\nArtikel 202034\nArtikel 394102"), 2000));
-};
-
-const mockArticleDB = {
-  "101178": "Kabelbinder 20cm",
-  "202034": "Schraube M6x40",
-  "394102": "Dübel 8mm"
-};
-
-type Entry = {
-  id: string;
-  name: string;
-  qty: number;
-};
-
-export default function App() {
-  const [step, setStep] = useState(1);
-  const [ocrText, setOcrText] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [progress, setProgress] = useState(0);
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [input, setInput] = useState("");
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFile(file);
-      setProgress(30);
-      const text = await mockOCR(file);
-      setOcrText(text);
-      setProgress(100);
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventur Tool</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto; }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .mba-logo {
+      background: radial-gradient(circle at 30% 30%, #2980b9, #2c3e50);
+      color: white;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
+    .step { display: none; }
+    .step.active { display: block; }
+    .mic-btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: green;
+      color: white;
+      font-size: 2.5rem;
+      border: none;
+      margin: 1rem auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mic-btn.active {
+      background: orange;
+    }
+    #status2, #feedback, #bestätigung, #micStatus, #tabelleHinweis {
+      margin-top: 1rem;
+      text-align: center;
+      font-weight: bold;
+    }
+    #feedback.success { color: green; }
+    #feedback.error { color: red; }
+  </style>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+<script>
+  window.Tesseract = window.Tesseract || {};
+  Tesseract.options = {
+    langPath: './tessdata'
   };
+</script>
+</head>
+<body>
+  <h1><div class="mba-logo">MBA</div>Inventur Tool</h1>
 
-  const handleSpeechInput = () => {
-    const match = input.match(/(\d{6}).*(\d+)/);
-    if (!match) return alert("Eingabe nicht erkannt");
-    const id = match[1];
-    const qty = parseInt(match[2]);
-    const name = mockArticleDB[id];
-    if (!name) return alert("Artikel nicht gefunden");
-    if (!window.confirm(`Artikel: ${name}\nMenge: ${qty}\nSpeichern?`)) return;
-    setEntries([...entries, { id, name, qty }]);
-    setInput("");
-  };
+  <div class="step active" id="step1">
+    <h2>📥 Schritt 1: Stückliste hochladen</h2>
+    <input type="file" id="pdfInput" accept="application/pdf" />
+    <div id="status1"></div>
+<div id="previewContainer" style="display: none;"></div>
+<div id="ocrPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div>
+<div id="csvPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div></div>
+    <progress id="ocrProgress" value="0" max="100" style="width: 100%; display: none; margin-top: 0.5rem;"></progress>
+    <div id="ocrText" style="display: none;"></div>
+    <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+      <button id="weiterButton" onclick="zeigeSchritt(2)" disabled>Weiter</button>
+    </div>
+  </div>
 
-  const handleExport = () => {
-    const csv = ["Artikelnummer,Bezeichnung,Menge", ...entries.map(e => `${e.id},${e.name},${e.qty}`)].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    saveAs(blob, "inventur.csv");
-  };
+  <div class="step" id="step2">
+    <h2>🎤 Schritt 2: Spracheingabe</h2>
+    <p><small>Halte den Button gedrückt und sage z. B.:<br><b>Artikel 101178 drei Stück</b></small></p>
+    <button class="mic-btn" id="micButton">🎤</button>
+    <div id="micStatus"></div>
+    <div id="tabelleHinweis"></div>
+    <div id="feedback"></div>
+    <div id="artikelName" style="margin-top: 1rem; text-align: center; font-style: italic;"></div>
+    <div id="bestätigung"></div>
+    <div id="status2"></div>
+    <div style="display: flex; justify-content: space-between; margin-top: 2rem;">
+      <button onclick="zeigeSchritt(1)">Zurück</button>
+      <button onclick="zeigeSchritt(3)">Weiter</button>
+    </div>
+  </div>
 
-  return (
-    <main className="p-4 max-w-xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold">📦 Inventur App</h1>
+  <div class="step" id="step3">
+    <h2>📤 Schritt 3: Exportieren</h2>
+    <button onclick="exportExcel()">📄 Excel exportieren</button>
+    <div style="margin-top: 1rem;">
+      <label for="email">📧 E-Mail für Versand:</label><br>
+      <input type="email" id="email" placeholder="z. B. max@firma.de" style="width: 100%; margin: 0.5rem 0; padding: 0.5rem;" />
+      <button onclick="sendEmail()">✉️ Per E-Mail versenden</button>
+    </div>
+    <div style="display: flex; justify-content: flex-start; margin-top: 2rem;">
+      <button onclick="zeigeSchritt(2)">Zurück</button>
+    </div>
+  </div>
 
-      {step === 1 && (
-        <Card>
-          <CardContent className="space-y-4 p-4">
-            <Input type="file" accept="application/pdf" onChange={handleFileUpload} />
-            <Progress value={progress} />
-            {ocrText && <Textarea value={ocrText} readOnly rows={6} />}
-            <Button onClick={() => setStep(2)} disabled={!ocrText}>Weiter</Button>
-          </CardContent>
-        </Card>
-      )}
+  <script>
+    function zeigeSchritt(nr) {
+      document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+      const ziel = document.getElementById(`step${nr}`);
+      if (ziel) ziel.classList.add('active');
+    }
 
-      {step === 2 && (
-        <Card>
-          <CardContent className="space-y-4 p-4">
-            <div className="flex items-center gap-2">
-              <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Artikel 101178 drei Stück" />
-              <Button onClick={handleSpeechInput}><Mic /></Button>
-            </div>
-            <ul className="list-disc pl-6">
-              {entries.map((e, i) => (
-                <li key={i}>{e.id} – {e.name} – {e.qty} Stück</li>
-              ))}
-            </ul>
-            <Button onClick={() => setStep(3)}>Weiter</Button>
-          </CardContent>
-        </Card>
-      )}
+    const micButton = document.getElementById("micButton");
+    const micStatus = document.getElementById("micStatus");
+    const feedback = document.getElementById("feedback");
+    const bestätigung = document.getElementById("bestätigung");
+    const status2 = document.getElementById("status2");
+    const tabelleHinweis = document.getElementById("tabelleHinweis");
 
-      {step === 3 && (
-        <Card>
-          <CardContent className="space-y-4 p-4">
-            <Textarea readOnly rows={entries.length + 2} value={["Artikelnummer,Bezeichnung,Menge", ...entries.map(e => `${e.id},${e.name},${e.qty}`)].join("\n")} />
-            <Button onClick={handleExport}><Download className="mr-2" /> CSV Export</Button>
-          </CardContent>
-        </Card>
-      )}
-    </main>
-  );
+    micButton.addEventListener("mousedown", () => {
+      micButton.classList.add("active");
+      micStatus.textContent = "🎙️ Aufnahme läuft ...";
+      feedback.textContent = "";
+      bestätigung.textContent = "";
+      startListening();
+    });
+
+    micButton.addEventListener("mouseup", () => {
+      if (recognition) recognition.stop();
+      micButton.classList.remove("active");
+      micStatus.textContent = "Aufnahme beendet";
+    });
+
+    let recognition;
+    let artikelDaten = {
+      "1000012": { alt: "101014", name: "Gleichrichter Hubwerk, blau", menge: 0 },
+      "1000025": { alt: "101036", name: "Hakenmaulsicherung zu HBC-Haken Gr. 1.6", menge: 0 },
+      "1000100": { alt: "101178", name: "Akku FLEX", menge: 0 }
+    };
+
+    function startListening() {
+      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'de-DE';
+      recognition.interimResults = false;
+      recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        status2.textContent = `Verstanden: ${text}`;
+        auswerten(text);
+      };
+      recognition.start();
+    }
+
+    function auswerten(text) {
+      const artikelnummer = text.match(/\d{6,7}/)?.[0];
+      const menge = parseInt(text.match(/\d+(?=\s*St(ü|u)ck|$)/)?.[0]);
+      let gefunden = false;
+      for (const [neu, daten] of Object.entries(artikelDaten)) {
+        if (neu === artikelnummer || daten.alt === artikelnummer) {
+          document.getElementById('artikelName').textContent = `Bezeichnung: ${daten.name}`;
+          tabelleHinweis.innerHTML = `<span style='color:green;'>✔️ Artikel in Tabelle vorhanden</span>`;
+          feedback.textContent = '';
+          bestätigung.innerHTML = `<div style='margin-top:1rem;'>Verstandene Anzahl: <b>${menge || "?"}</b><br>✔️ Korrekt? <button onclick="bestätige('${neu}', ${menge})">Ja</button> <button onclick="feedback.textContent=''; bestätigung.textContent='';">Nein</button></div>`;
+          gefunden = true;
+          break;
+        }
+      }
+      if (!gefunden) {
+        document.getElementById('artikelName').textContent = '';
+        tabelleHinweis.innerHTML = `<span style='color:red;'>❌ Artikel nicht vorhanden</span>`;
+        feedback.textContent = '';
+        bestätigung.textContent = '';
+      }
+    }
+
+    function bestätige(nummer, menge) {
+      artikelDaten[nummer].menge += menge;
+      feedback.textContent = "✅ Eingabe gespeichert.";
+      bestätigung.textContent = "";
+    }
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+const pdfInput = document.getElementById("pdfInput");
+    pdfInput.addEventListener("change", async function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const pdfURL = URL.createObjectURL(file);
+  const loadingTask = pdfjsLib.getDocument(pdfURL);
+  const pdf = await loadingTask.promise;
+
+  const progress = document.getElementById("ocrProgress");
+  progress.style.display = "block";
+  progress.value = 0;
+  document.getElementById("status1").textContent = "Texterkennung gestartet...";
+
+  const worker = await Tesseract.createWorker({
+    logger: m => {
+      if (m.status === 'recognizing text' && m.progress !== undefined) {
+        const percent = Math.round(m.progress * 100);
+        progress.value = percent;
+        document.getElementById("status1").textContent = `Texterkennung: ${percent}%`;
+      }
+    }
+  });
+  await worker.load();
+await worker.loadLanguage('deu', './tessdata');
+await worker.initialize('deu');
+await worker.setParameters({
+  tessedit_ocr_engine_mode: '1',
+  tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.- ',
+  preserve_interword_spaces: '1',
+  user_defined_dpi: '300'
+});
+
+let combinedText = "";
+const totalPages = pdf.numPages;
+
+for (let i = 1; i <= totalPages; i++) {
+  document.getElementById("status1").textContent = `Verarbeite Seite ${i} von ${totalPages}`;
+  const page = await pdf.getPage(i);
+  const viewport = page.getViewport({ scale: 3 });
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  canvas.height = viewport.height;
+  canvas.width = viewport.width;
+  await page.render({ canvasContext: context, viewport }).promise;
+  const { data: { text } } = await worker.recognize(canvas);
+  combinedText += text + "\\n";
 }
+
+await worker.terminate();
+
+document.getElementById("ocrText").textContent = combinedText;
+document.getElementById("ocrPreview").textContent = combinedText;
+document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
+progress.value = 100;
+progress.style.display = "none";
+document.getElementById("weiterButton").disabled = false;
+
+let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge\\n";
+for (const [neu, val] of Object.entries(artikelDaten)) {
+  csvOutput += `${neu};${val.alt};${val.name};${val.menge}\\n`;
+}
+document.getElementById("csvPreview").style.display = "block";
+document.getElementById("csvPreview").textContent = csvOutput;
