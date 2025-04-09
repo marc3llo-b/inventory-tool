@@ -1,6 +1,6 @@
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open("inventur-cache-v1").then((cache) => {
+    caches.open("inventur-cache").then((cache) => {
       return cache.addAll([
         "./",
         "./index.html",
