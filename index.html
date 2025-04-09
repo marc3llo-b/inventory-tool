@@ -202,93 +202,43 @@ const pdfInput = document.getElementById("pdfInput");
     }
   });
   await worker.load();
-  await worker.loadLanguage('deu', './tessdata');
-  await worker.initialize('deu');
-  await worker.setParameters({
-    tessedit_ocr_engine_mode: '1',
-    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.- ',
-    preserve_interword_spaces: '1',
-    user_defined_dpi: '300'
-  });
-
-  let combinedText = "";
-  const totalPages = pdf.numPages;
-
-  for (let i = 1; i <= totalPages; i++) {
-    document.getElementById("status1").textContent = `Verarbeite Seite ${i} von ${totalPages}`;
-    const page = await pdf.getPage(i);
-    const viewport = page.getViewport({ scale: 3 });
-    const canvas = document.createElement("canvas");
-    const context = canvas.getContext("2d");
-    canvas.height = viewport.height;
-    canvas.width = viewport.width;
-    await page.render({ canvasContext: context, viewport }).promise;
-    const { data: { text } } = await worker.recognize(canvas);
-    combinedText += text + "
-";
-  }
-
-  await worker.terminate();
-
-  document.getElementById("ocrText").textContent = combinedText;
-  document.getElementById("ocrPreview").textContent = combinedText;
-  document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
-  progress.value = 100;
-  progress.style.display = "none";
-  document.getElementById("weiterButton").disabled = false;
-
-  let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge
-";
-  for (const [neu, val] of Object.entries(artikelDaten)) {
-    csvOutput += `${neu};${val.alt};${val.name};${val.menge}
-`;
-  }
-  document.getElementById("csvPreview").style.display = "block";
-  document.getElementById("csvPreview").textContent = csvOutput;
+await worker.loadLanguage('deu', './tessdata');
+await worker.initialize('deu');
+await worker.setParameters({
+  tessedit_ocr_engine_mode: '1',
+  tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.- ',
+  preserve_interword_spaces: '1',
+  user_defined_dpi: '300'
 });
-      await worker.load();
-      await worker.loadLanguage('deu', './tessdata');
-      await worker.initialize('deu');
-      await worker.setParameters({
-        tessedit_ocr_engine_mode: '1',
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.- ',
-        preserve_interword_spaces: '1',
-        user_defined_dpi: '300'
-      });
 
-      let combinedText = "";
-      const totalPages = pdf.numPages;
-let currentPage = 0;
-      for (let i = 1; i <= totalPages; i++) {
-        currentPage = i;
-        document.getElementById("status1").textContent = `Verarbeite Seite ${i} von ${pdf.numPages}`;
-        const page = await pdf.getPage(i);
-        const viewport = page.getViewport({ scale: 3 });
-        const canvas = document.createElement("canvas");
-        document.getElementById("previewContainer").appendChild(canvas);
-        canvas.style.display = "none";
-        const context = canvas.getContext("2d");
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        await page.render({ canvasContext: context, viewport: viewport }).promise;
-        const { data: { text } } = await worker.recognize(canvas);
-        combinedText += text + "\n";
-      }
+let combinedText = "";
+const totalPages = pdf.numPages;
 
-      await worker.terminate();
+for (let i = 1; i <= totalPages; i++) {
+  document.getElementById("status1").textContent = `Verarbeite Seite ${i} von ${totalPages}`;
+  const page = await pdf.getPage(i);
+  const viewport = page.getViewport({ scale: 3 });
+  const canvas = document.createElement("canvas");
+  const context = canvas.getContext("2d");
+  canvas.height = viewport.height;
+  canvas.width = viewport.width;
+  await page.render({ canvasContext: context, viewport }).promise;
+  const { data: { text } } = await worker.recognize(canvas);
+  combinedText += text + "\\n";
+}
 
-      document.getElementById("ocrText").textContent = combinedText;
-      document.getElementById("csvPreview").style.display = "block";
-      document.getElementById("ocrPreview").textContent = combinedText;
-      let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge
-";
-      for (const [neu, val] of Object.entries(artikelDaten)) {
-        csvOutput += `${neu};${val.alt};${val.name};${val.menge}
-`;
-      }
-      document.getElementById("csvPreview").style.display = "block";
-      document.getElementById("csvPreview").textContent = csvOutput;
-      document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
-      progress.value = 100;
-      progress.style.display = 'none';
-      document.getElementById("weiterButton").disabled = false;
+await worker.terminate();
+
+document.getElementById("ocrText").textContent = combinedText;
+document.getElementById("ocrPreview").textContent = combinedText;
+document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
+progress.value = 100;
+progress.style.display = "none";
+document.getElementById("weiterButton").disabled = false;
+
+let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge\\n";
+for (const [neu, val] of Object.entries(artikelDaten)) {
+  csvOutput += `${neu};${val.alt};${val.name};${val.menge}\\n`;
+}
+document.getElementById("csvPreview").style.display = "block";
+document.getElementById("csvPreview").textContent = csvOutput;
