@@ -181,25 +181,71 @@
 
 const pdfInput = document.getElementById("pdfInput");
     pdfInput.addEventListener("change", async function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const pdfURL = URL.createObjectURL(file);
-      const loadingTask = pdfjsLib.getDocument(pdfURL);
-      const pdf = await loadingTask.promise;
+  const file = e.target.files[0];
+  if (!file) return;
+  const pdfURL = URL.createObjectURL(file);
+  const loadingTask = pdfjsLib.getDocument(pdfURL);
+  const pdf = await loadingTask.promise;
 
-      const progress = document.getElementById("ocrProgress");
-      progress.style.display = "block";
-      progress.value = 0;
+  const progress = document.getElementById("ocrProgress");
+  progress.style.display = "block";
+  progress.value = 0;
+  document.getElementById("status1").textContent = "Texterkennung gestartet...";
 
-      const worker = await Tesseract.createWorker({
-        logger: m => {
-          if (m.status === 'recognizing text' && m.progress !== undefined) {
-            const percent = Math.round(m.progress * 100);
-            progress.value = percent;
-            document.getElementById("status1").textContent = `Texterkennung: ${percent}%`;
-          }
-        }
-      });
+  const worker = await Tesseract.createWorker({
+    logger: m => {
+      if (m.status === 'recognizing text' && m.progress !== undefined) {
+        const percent = Math.round(m.progress * 100);
+        progress.value = percent;
+        document.getElementById("status1").textContent = `Texterkennung: ${percent}%`;
+      }
+    }
+  });
+  await worker.load();
+  await worker.loadLanguage('deu', './tessdata');
+  await worker.initialize('deu');
+  await worker.setParameters({
+    tessedit_ocr_engine_mode: '1',
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.- ',
+    preserve_interword_spaces: '1',
+    user_defined_dpi: '300'
+  });
+
+  let combinedText = "";
+  const totalPages = pdf.numPages;
+
+  for (let i = 1; i <= totalPages; i++) {
+    document.getElementById("status1").textContent = `Verarbeite Seite ${i} von ${totalPages}`;
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 3 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    await page.render({ canvasContext: context, viewport }).promise;
+    const { data: { text } } = await worker.recognize(canvas);
+    combinedText += text + "
+";
+  }
+
+  await worker.terminate();
+
+  document.getElementById("ocrText").textContent = combinedText;
+  document.getElementById("ocrPreview").textContent = combinedText;
+  document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
+  progress.value = 100;
+  progress.style.display = "none";
+  document.getElementById("weiterButton").disabled = false;
+
+  let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge
+";
+  for (const [neu, val] of Object.entries(artikelDaten)) {
+    csvOutput += `${neu};${val.alt};${val.name};${val.menge}
+`;
+  }
+  document.getElementById("csvPreview").style.display = "block";
+  document.getElementById("csvPreview").textContent = csvOutput;
+});
       await worker.load();
       await worker.loadLanguage('deu', './tessdata');
       await worker.initialize('deu');
@@ -246,4 +292,3 @@ let currentPage = 0;
       progress.value = 100;
       progress.style.display = 'none';
       document.getElementById("weiterButton").disabled = false;
-
