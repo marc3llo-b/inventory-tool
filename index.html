@@ -217,7 +217,7 @@ let currentPage = 0;
         const viewport = page.getViewport({ scale: 2 });
         const canvas = document.createElement("canvas");
         document.getElementById("previewContainer").appendChild(canvas);
-        if (!document.getElementById("togglePreview").checked) canvas.style.display = "none";
+        // Vorschau-Steuerung entfernt – Canvas bleibt sichtbar für Testzwecke
         canvas.style.display = "block";
         canvas.style.maxWidth = "100%";
         canvas.style.margin = "1rem auto";
