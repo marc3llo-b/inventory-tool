@@ -52,8 +52,8 @@
 <script>
   window.Tesseract = window.Tesseract || {};
   Tesseract.options = {
-    langPath: './tessdata'
-  };
+  langPath: 'https://tessdata.projectnaptha.com/4.0.0'
+};
 </script>
 </head>
 <body>
@@ -203,7 +203,7 @@ const pdfInput = document.getElementById("pdfInput");
     }
   });
   await worker.load();
-await worker.loadLanguage('deu', './tessdata');
+await worker.loadLanguage('deu');
 await worker.initialize('deu');
 await worker.setParameters({
   tessedit_ocr_engine_mode: '1',
@@ -249,5 +249,3 @@ if (csvOutput.trim()) {
   document.getElementById("csvPreview").textContent = csvOutput;
   document.getElementById("csvPreview").style.display = "block";
 }
-
-                            
