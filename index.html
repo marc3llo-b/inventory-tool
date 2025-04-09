@@ -65,6 +65,11 @@
     <div id="status1"></div>
 <label><input type="checkbox" id="togglePreview" checked> Vorschau anzeigen</label>
 <div id="csvPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px; display:none;"></div>
+<script>
+document.getElementById("togglePreview").addEventListener("change", function () {
+  document.getElementById("csvPreview").style.display = this.checked ? "block" : "none";
+});
+</script></div>
     <progress id="ocrProgress" value="0" max="100" style="width: 100%; display: none; margin-top: 0.5rem;"></progress>
     <div id="ocrText" style="display: none;"></div>
     <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
@@ -232,7 +237,9 @@ let currentPage = 0;
       await worker.terminate();
 
       document.getElementById("ocrText").textContent = combinedText;
-      document.getElementById("csvPreview").style.display = "block";
+      if (document.getElementById("togglePreview").checked) {
+        document.getElementById("csvPreview").style.display = "block";
+      }
       let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge
 ";
       for (const [neu, val] of Object.entries(artikelDaten)) {
