@@ -184,8 +184,8 @@ const pdfInput = document.getElementById("pdfInput");
     pdfInput.addEventListener("change", async function (e) {
   const file = e.target.files[0];
   if (!file) return;
-  const pdfURL = URL.createObjectURL(file);
-  const loadingTask = pdfjsLib.getDocument(pdfURL);
+  const arrayBuffer = await file.arrayBuffer();
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
   const pdf = await loadingTask.promise;
 
   const progress = document.getElementById("ocrProgress");
@@ -193,7 +193,7 @@ const pdfInput = document.getElementById("pdfInput");
   progress.value = 0;
   document.getElementById("status1").textContent = "Texterkennung gestartet...";
 
-  const worker = await Tesseract.createWorker({
+  const worker = await window.Tesseract.createWorker({
     logger: m => {
       if (m.status === 'recognizing text' && m.progress !== undefined) {
         const percent = Math.round(m.progress * 100);
@@ -224,8 +224,16 @@ for (let i = 1; i <= totalPages; i++) {
   canvas.height = viewport.height;
   canvas.width = viewport.width;
   await page.render({ canvasContext: context, viewport }).promise;
-  const { data: { text } } = await worker.recognize(canvas);
-  combinedText += text + "\n";
+  try {
+    const { data: { text } } = await worker.recognize(canvas);
+    combinedText += text + "
+";
+    document.getElementById("status1").textContent += "
+✅ Seite verarbeitet.";
+  } catch (err) {
+    console.error("Texterkennung fehlgeschlagen:", err);
+    document.getElementById("status1").textContent = "❌ Texterkennung fehlgeschlagen.";
+  }
 }
 
 await worker.terminate();
