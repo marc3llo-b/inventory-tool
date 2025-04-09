@@ -1,6 +1,294 @@
-
 <!DOCTYPE html>
 <html lang="de">
-<head><meta charset="UTF-8"><title>Inventur Tool</title></head>
-<body><h1>Inventur Tool – Platzhalter</h1></body>
-</html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventur Tool</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto; }
+    h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .mba-logo {
+      background: radial-gradient(circle at 30% 30%, #2980b9, #2c3e50);
+      color: white;
+      border-radius: 50%;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 1.1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .step { display: none; }
+    .step.active { display: block; }
+    .mic-btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: green;
+      color: white;
+      font-size: 2.5rem;
+      border: none;
+      margin: 1rem auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mic-btn.active {
+      background: orange;
+    }
+    #status2, #feedback, #bestätigung, #micStatus, #tabelleHinweis {
+      margin-top: 1rem;
+      text-align: center;
+      font-weight: bold;
+    }
+    #feedback.success { color: green; }
+    #feedback.error { color: red; }
+  </style>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
+<script>
+  window.Tesseract = window.Tesseract || {};
+  Tesseract.options = {
+    langPath: './tessdata'
+  };
+</script>
+</head>
+<body>
+  <h1><div class="mba-logo">MBA</div>Inventur Tool</h1>
+
+  <div class="step active" id="step1">
+    <h2>📥 Schritt 1: Stückliste hochladen</h2>
+    <input type="file" id="pdfInput" accept="application/pdf" />
+    <div id="status1"></div>
+<div id="previewContainer" style="display: none;"></div>
+<div id="ocrPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div>
+<div id="csvPreview" style="margin-top:1rem; font-family:monospace; white-space:pre; background:#f4f4f4; padding:1rem; border-radius:5px;"></div></div>
+    <progress id="ocrProgress" value="0" max="100" style="width: 100%; display: none; margin-top: 0.5rem;"></progress>
+    <div id="ocrText" style="display: none;"></div>
+    <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+      <button id="weiterButton" onclick="zeigeSchritt(2)" disabled>Weiter</button>
+    </div>
+  </div>
+
+  <div class="step" id="step2">
+    <h2>🎤 Schritt 2: Spracheingabe</h2>
+    <p><small>Halte den Button gedrückt und sage z. B.:<br><b>Artikel 101178 drei Stück</b></small></p>
+    <button class="mic-btn" id="micButton">🎤</button>
+    <div id="micStatus"></div>
+    <div id="tabelleHinweis"></div>
+    <div id="feedback"></div>
+    <div id="artikelName" style="margin-top: 1rem; text-align: center; font-style: italic;"></div>
+    <div id="bestätigung"></div>
+    <div id="status2"></div>
+    <div style="display: flex; justify-content: space-between; margin-top: 2rem;">
+      <button onclick="zeigeSchritt(1)">Zurück</button>
+      <button onclick="zeigeSchritt(3)">Weiter</button>
+    </div>
+  </div>
+
+  <div class="step" id="step3">
+    <h2>📤 Schritt 3: Exportieren</h2>
+    <button onclick="exportExcel()">📄 Excel exportieren</button>
+    <div style="margin-top: 1rem;">
+      <label for="email">📧 E-Mail für Versand:</label><br>
+      <input type="email" id="email" placeholder="z. B. max@firma.de" style="width: 100%; margin: 0.5rem 0; padding: 0.5rem;" />
+      <button onclick="sendEmail()">✉️ Per E-Mail versenden</button>
+    </div>
+    <div style="display: flex; justify-content: flex-start; margin-top: 2rem;">
+      <button onclick="zeigeSchritt(2)">Zurück</button>
+    </div>
+  </div>
+
+  <script>
+    function zeigeSchritt(nr) {
+      document.querySelectorAll('.step').forEach(el => el.classList.remove('active'));
+      const ziel = document.getElementById(`step${nr}`);
+      if (ziel) ziel.classList.add('active');
+    }
+
+    const micButton = document.getElementById("micButton");
+    const micStatus = document.getElementById("micStatus");
+    const feedback = document.getElementById("feedback");
+    const bestätigung = document.getElementById("bestätigung");
+    const status2 = document.getElementById("status2");
+    const tabelleHinweis = document.getElementById("tabelleHinweis");
+
+    micButton.addEventListener("mousedown", () => {
+      micButton.classList.add("active");
+      micStatus.textContent = "🎙️ Aufnahme läuft ...";
+      feedback.textContent = "";
+      bestätigung.textContent = "";
+      startListening();
+    });
+
+    micButton.addEventListener("mouseup", () => {
+      if (recognition) recognition.stop();
+      micButton.classList.remove("active");
+      micStatus.textContent = "Aufnahme beendet";
+    });
+
+    let recognition;
+    let artikelDaten = {
+      "1000012": { alt: "101014", name: "Gleichrichter Hubwerk, blau", menge: 0 },
+      "1000025": { alt: "101036", name: "Hakenmaulsicherung zu HBC-Haken Gr. 1.6", menge: 0 },
+      "1000100": { alt: "101178", name: "Akku FLEX", menge: 0 }
+    };
+
+    function startListening() {
+      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'de-DE';
+      recognition.interimResults = false;
+      recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        status2.textContent = `Verstanden: ${text}`;
+        auswerten(text);
+      };
+      recognition.start();
+    }
+
+    function auswerten(text) {
+      const artikelnummer = text.match(/\d{6,7}/)?.[0];
+      const menge = parseInt(text.match(/\d+(?=\s*St(ü|u)ck|$)/)?.[0]);
+      let gefunden = false;
+      for (const [neu, daten] of Object.entries(artikelDaten)) {
+        if (neu === artikelnummer || daten.alt === artikelnummer) {
+          document.getElementById('artikelName').textContent = `Bezeichnung: ${daten.name}`;
+          tabelleHinweis.innerHTML = `<span style='color:green;'>✔️ Artikel in Tabelle vorhanden</span>`;
+          feedback.textContent = '';
+          bestätigung.innerHTML = `<div style='margin-top:1rem;'>Verstandene Anzahl: <b>${menge || "?"}</b><br>✔️ Korrekt? <button onclick="bestätige('${neu}', ${menge})">Ja</button> <button onclick="feedback.textContent=''; bestätigung.textContent='';">Nein</button></div>`;
+          gefunden = true;
+          break;
+        }
+      }
+      if (!gefunden) {
+        document.getElementById('artikelName').textContent = '';
+        tabelleHinweis.innerHTML = `<span style='color:red;'>❌ Artikel nicht vorhanden</span>`;
+        feedback.textContent = '';
+        bestätigung.textContent = '';
+      }
+    }
+
+    function bestätige(nummer, menge) {
+      artikelDaten[nummer].menge += menge;
+      feedback.textContent = "✅ Eingabe gespeichert.";
+      bestätigung.textContent = "";
+    }
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+const pdfInput = document.getElementById("pdfInput");
+    pdfInput.addEventListener("change", async function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const pdfURL = URL.createObjectURL(file);
+  const loadingTask = pdfjsLib.getDocument(pdfURL);
+  const pdf = await loadingTask.promise;
+
+  const progress = document.getElementById("ocrProgress");
+  progress.style.display = "block";
+  progress.value = 0;
+  document.getElementById("status1").textContent = "Texterkennung gestartet...";
+
+  const worker = await Tesseract.createWorker({
+    logger: m => {
+      if (m.status === 'recognizing text' && m.progress !== undefined) {
+        const percent = Math.round(m.progress * 100);
+        progress.value = percent;
+        document.getElementById("status1").textContent = `Texterkennung: ${percent}%`;
+      }
+    }
+  });
+  await worker.load();
+  await worker.loadLanguage('deu', './tessdata');
+  await worker.initialize('deu');
+  await worker.setParameters({
+    tessedit_ocr_engine_mode: '1',
+    tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.- ',
+    preserve_interword_spaces: '1',
+    user_defined_dpi: '300'
+  });
+
+  let combinedText = "";
+  const totalPages = pdf.numPages;
+
+  for (let i = 1; i <= totalPages; i++) {
+    document.getElementById("status1").textContent = `Verarbeite Seite ${i} von ${totalPages}`;
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 3 });
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    await page.render({ canvasContext: context, viewport }).promise;
+    const { data: { text } } = await worker.recognize(canvas);
+    combinedText += text + "
+";
+  }
+
+  await worker.terminate();
+
+  document.getElementById("ocrText").textContent = combinedText;
+  document.getElementById("ocrPreview").textContent = combinedText;
+  document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
+  progress.value = 100;
+  progress.style.display = "none";
+  document.getElementById("weiterButton").disabled = false;
+
+  let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge
+";
+  for (const [neu, val] of Object.entries(artikelDaten)) {
+    csvOutput += `${neu};${val.alt};${val.name};${val.menge}
+`;
+  }
+  document.getElementById("csvPreview").style.display = "block";
+  document.getElementById("csvPreview").textContent = csvOutput;
+});
+      await worker.load();
+      await worker.loadLanguage('deu', './tessdata');
+      await worker.initialize('deu');
+      await worker.setParameters({
+        tessedit_ocr_engine_mode: '1',
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.- ',
+        preserve_interword_spaces: '1',
+        user_defined_dpi: '300'
+      });
+
+      let combinedText = "";
+      const totalPages = pdf.numPages;
+let currentPage = 0;
+      for (let i = 1; i <= totalPages; i++) {
+        currentPage = i;
+        document.getElementById("status1").textContent = `Verarbeite Seite ${i} von ${pdf.numPages}`;
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 3 });
+        const canvas = document.createElement("canvas");
+        document.getElementById("previewContainer").appendChild(canvas);
+        canvas.style.display = "none";
+        const context = canvas.getContext("2d");
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: context, viewport: viewport }).promise;
+        const { data: { text } } = await worker.recognize(canvas);
+        combinedText += text + "\n";
+      }
+
+      await worker.terminate();
+
+      document.getElementById("ocrText").textContent = combinedText;
+      document.getElementById("csvPreview").style.display = "block";
+      document.getElementById("ocrPreview").textContent = combinedText;
+      let csvOutput = "Artikel Nr.;Alt;Bezeichnung;Menge
+";
+      for (const [neu, val] of Object.entries(artikelDaten)) {
+        csvOutput += `${neu};${val.alt};${val.name};${val.menge}
+`;
+      }
+      document.getElementById("csvPreview").style.display = "block";
+      document.getElementById("csvPreview").textContent = csvOutput;
+      document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
+      progress.value = 100;
+      progress.style.display = 'none';
+      document.getElementById("weiterButton").disabled = false;
