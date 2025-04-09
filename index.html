@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventur App</title>
+  <title>Inventur Tool</title>
   <style>
     body { font-family: sans-serif; padding: 1rem; max-width: 600px; margin: auto; }
     h1 { font-size: 1.5rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
     .mba-logo {
-      background: linear-gradient(135deg, #2c3e50, #34495e);
+      background: radial-gradient(circle at 30% 30%, #2980b9, #2c3e50);
       color: white;
       border-radius: 50%;
       width: 48px;
@@ -20,210 +20,205 @@
       font-size: 1.1rem;
       box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
-    .step { display: none; margin-bottom: 2rem; }
+    .step { display: none; }
     .step.active { display: block; }
-    button, input[type="file"] { padding: 0.5rem 1rem; margin-top: 1rem; }
-    #status { margin-top: 1rem; color: green; }
-    #ocrText { white-space: pre-wrap; background: #f4f4f4; padding: 1rem; margin-top: 1rem; font-family: monospace; }
-    #zusammenfassung { background: #f9f9f9; padding: 1rem; margin-top: 1rem; border: 1px solid #ccc; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
-    .entfernen-btn { background: #e74c3c; color: white; border: none; cursor: pointer; padding: 0.3rem 0.5rem; }
+    .mic-btn {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: green;
+      color: white;
+      font-size: 2.5rem;
+      border: none;
+      margin: 1rem auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mic-btn.active {
+      background: orange;
+    }
+    #status2, #feedback, #bestätigung, #micStatus, #tabelleHinweis {
+      margin-top: 1rem;
+      text-align: center;
+      font-weight: bold;
+    }
+    #feedback.success { color: green; }
+    #feedback.error { color: red; }
   </style>
+  <link rel="manifest" href="manifest.json">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4.0.2/dist/tesseract.min.js"></script>
-  <link rel="manifest" href="manifest.json">
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('service-worker.js')
-          .then(reg => console.log('✅ Service Worker registriert:', reg.scope))
-          .catch(err => console.warn('❌ Service Worker Fehler:', err));
-      });
-    }
-  </script>
 </head>
 <body>
-  <h1><div class="mba-logo" style="background: radial-gradient(circle at 30% 30%, #2980b9, #2c3e50); font-family: 'Segoe UI', sans-serif; letter-spacing: 1px;">MBA</div>Inventur Tool</h1>
+  <h1><div class="mba-logo">MBA</div>Inventur Tool</h1>
 
-  <!-- Schritt 1: PDF hochladen -->
   <div class="step active" id="step1">
-    <h2>1. Stückliste hochladen</h2>
+    <h2>📥 Schritt 1: Stückliste hochladen</h2>
     <input type="file" id="pdfInput" accept="application/pdf" />
     <div id="status1"></div>
     <div id="ocrText"></div>
-    <button onclick="nextStep(2)">Weiter</button>
-    <p><small>💾 Optional: Bestehende Backup-Datei einlesen</small></p>
-    <input type="file" id="backupRestore" accept="application/json" onchange="restoreBackup(event)" style="margin-top: 0.5rem;" />
+    <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+      <button onclick="zeigeSchritt(2)">Weiter</button>
+    </div>
   </div>
 
-  <!-- Schritt 2: Spracheingabe -->
   <div class="step" id="step2">
-    <h2>2. Spracheingabe starten</h2>
-<p><small>🛠 Hinweis: Stelle sicher, dass du dem Browser den Mikrofonzugriff erlaubt hast. Am besten funktioniert es mit Google Chrome (Android) oder Safari (iPhone).</small></p>
-    <p>🔊 Bitte sage die Artikelnummer deutlich als einzelne Ziffern (z. B. „eins null null null eins zwei“) und dann die Stückzahl, z. B. „drei Stück“.<br>✅ Bestätige mit „ja“, „richtig“ oder „korrekt“. Bei „nein“ wird der Schritt wiederholt.</p>
-    <button onclick="startListening()" id="micButton">🎤 Spracheingabe starten</button>
-<div id="micStatus" style="margin-top: 0.5rem; font-weight: bold;"></div>
+    <h2>🎤 Schritt 2: Spracheingabe</h2>
+    <p><small>Halte den Button gedrückt und sage z. B.:<br><b>Artikel 101178 drei Stück</b></small></p>
+    <button class="mic-btn" id="micButton">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+        <path d="M8 12a3 3 0 0 0 3-3V4a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3z"/>
+        <path d="M5 10a3 3 0 0 0 6 0V4a3 3 0 0 0-6 0v6z"/>
+        <path d="M11 10.5a4 4 0 0 1-8 0H1a6 6 0 0 0 12 0h-2z"/>
+      </svg>
+    </button>
+    <div id="micStatus"></div>
+    <div id="tabelleHinweis"></div>
+    <div id="feedback"></div>
+    <div id="bestätigung"></div>
     <div id="status2"></div>
-    <button onclick="nextStep(1)">Zurück</button>
-    <button onclick="updateTable(); nextStep(3)">Zur Auswertung</button>
+    <div style="display: flex; justify-content: space-between; margin-top: 2rem;">
+      <button onclick="zeigeSchritt(1)">Zurück</button>
+      <button onclick="zeigeSchritt(3)">Weiter</button>
+    </div>
   </div>
 
-  <!-- Schritt 3: Exportieren -->
   <div class="step" id="step3">
-    <h2>3. Inventur abschließen</h2>
-    <div id="zusammenfassung"></div>
-    <label for="email">📧 E-Mail für Versand:</label>
-    <input type="email" id="email" placeholder="z. B. max@firma.de" style="width: 100%; margin: 0.5rem 0;" />
-    <button onclick="sendEmail()">✉️ Per E-Mail versenden</button>
+    <h2>📤 Schritt 3: Exportieren</h2>
     <button onclick="exportExcel()">📄 Excel exportieren</button>
-    <button onclick="saveBackup()">💾 Backup herunterladen</button>
-    <p><small>Mailversand erfolgt clientseitig über mailto:-Link mit Anhang-Hinweis.</small></p>
-    <button onclick="nextStep(2)">🔙 Zurück zur Erfassung</button>
+    <div style="margin-top: 1rem;">
+      <label for="email">📧 E-Mail für Versand:</label><br>
+      <input type="email" id="email" placeholder="z. B. max@firma.de" style="width: 100%; margin: 0.5rem 0; padding: 0.5rem;" />
+      <button onclick="sendEmail()">✉️ Per E-Mail versenden</button>
+    </div>
+    <div style="display: flex; justify-content: flex-start; margin-top: 2rem;">
+      <button onclick="zeigeSchritt(2)">Zurück</button>
+    </div>
   </div>
 
   <script>
-function nextStep(stepNum) {
-  const steps = document.querySelectorAll('.step');
-  steps.forEach((step, index) => {
-    step.classList.toggle('active', index === stepNum - 1);
-  });
-}
+    function zeigeSchritt(nr) {
+      document.querySelectorAll('.step').forEach((el, idx) => {
+        el.classList.toggle('active', idx === nr - 1);
+      });
+    }
 
-let artikelDaten = {
+    let recognition;
+    let artikelDaten = {
       "1000012": { alt: "101014", name: "Gleichrichter Hubwerk, blau", menge: 0 },
       "1000025": { alt: "101036", name: "Hakenmaulsicherung zu HBC-Haken Gr. 1.6", menge: 0 },
       "1000100": { alt: "101178", name: "Akku FLEX", menge: 0 }
     };
 
-    document.getElementById("pdfInput").addEventListener("change", async function (e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const pdfURL = URL.createObjectURL(file);
-      const loadingTask = pdfjsLib.getDocument(pdfURL);
-      const pdf = await loadingTask.promise;
-      const page = await pdf.getPage(1);
-      const viewport = page.getViewport({ scale: 2 });
-      const canvas = document.createElement("canvas");
-      const context = canvas.getContext("2d");
-      canvas.height = viewport.height;
-      canvas.width = viewport.width;
-      await page.render({ canvasContext: context, viewport: viewport }).promise;
-      document.getElementById("status1").appendChild(canvas);
-      const { data: { text } } = document.getElementById("ocrText").textContent = "🔄 Texterkennung läuft ...";
-      const result = await Tesseract.recognize(canvas, 'deu');
-      document.getElementById("ocrText").textContent = result.data.text;
-      document.getElementById("ocrText").textContent = text;
+    const micButton = document.getElementById("micButton");
+    const micStatus = document.getElementById("micStatus");
+    const feedback = document.getElementById("feedback");
+    const bestätigung = document.getElementById("bestätigung");
+    const status2 = document.getElementById("status2");
+    const tabelleHinweis = document.getElementById("tabelleHinweis");
+
+    micButton.addEventListener("mousedown", () => {
+      micButton.classList.add("active");
+      micStatus.textContent = "🎙️ Aufnahme läuft ...";
+      feedback.textContent = "";
+      bestätigung.textContent = "";
+      startListening();
     });
 
-    function updateTable() {
-      const rows = Object.entries(artikelDaten)
-        .filter(([, val]) => val.menge > 0)
-        .map(([neu, val]) => `
-          <tr>
-            <td>${neu}</td>
-            <td>${val.alt}</td>
-            <td>${val.name}</td>
-            <td>${val.menge}</td>
-            <td><button class='entfernen-btn' onclick='entferneArtikel("${neu}")'>Entfernen</button></td>
-          </tr>
-        `).join('');
+    micButton.addEventListener("mouseup", () => {
+      if (recognition) recognition.stop();
+      micButton.classList.remove("active");
+      micStatus.textContent = "Aufnahme beendet";
+    });
 
-      document.getElementById("zusammenfassung").innerHTML = `
-        <h3>🗂 Erfasste Artikel</h3>
-        <table>
-          <thead>
-            <tr><th>Neu</th><th>Alt</th><th>Bezeichnung</th><th>Menge</th><th>Aktion</th></tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>`;
+    function startListening() {
+      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = 'de-DE';
+      recognition.interimResults = false;
+      recognition.onresult = (event) => {
+        const text = event.results[0][0].transcript;
+        status2.textContent = `Verstanden: ${text}`;
+        auswerten(text);
+      };
+      recognition.start();
     }
 
-    function entferneArtikel(nummer) {
-      if (artikelDaten[nummer]) {
-        artikelDaten[nummer].menge = 0;
-        updateTable();
+    function auswerten(text) {
+      const artikelnummer = text.match(/\d{6,7}/)?.[0];
+      const menge = parseInt(text.match(/\d+(?=\s*St(ü|u)ck|$)/)?.[0]);
+      let gefunden = false;
+      for (const [neu, daten] of Object.entries(artikelDaten)) {
+        if (neu === artikelnummer || daten.alt === artikelnummer) {
+          tabelleHinweis.innerHTML = `<span style='color:green;'>✔️ Artikel in Tabelle vorhanden</span>`;
+          feedback.textContent = '';
+          bestätigung.innerHTML = `<div style='margin-top:1rem;'>Verstandene Anzahl: <b>${menge || "?"}</b><br>✔️ Korrekt? <button onclick="bestätige('${neu}', ${menge})">Ja</button> <button onclick="feedback.textContent=''; bestätigung.textContent='';">Nein</button></div>`;
+          gefunden = true;
+          break;
+        }
+      }
+      if (!gefunden) {
+        tabelleHinweis.innerHTML = `<span style='color:red;'>❌ Artikel nicht vorhanden</span>`;
+        feedback.textContent = '';
+        bestätigung.textContent = '';
       }
     }
 
-    function speak(text) {
-  const synth = window.speechSynthesis;
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = 'de-DE';
-  synth.speak(utter);
-}
+    function bestätige(nummer, menge) {
+      artikelDaten[nummer].menge += menge;
+      feedback.textContent = "✅ Eingabe gespeichert.";
+      bestätigung.textContent = "";
+    }
 
-function startListening() {
-  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-  const micStatus = document.getElementById("micStatus");
-  recognition.lang = 'de-DE';
-  recognition.interimResults = false;
-  micStatus.textContent = "🎙️ Ich höre zu ...";
-  micStatus.style.color = "blue";
+    const pdfInput = document.getElementById("pdfInput");
+    if (pdfInput) {
+      pdfInput.addEventListener("change", async function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const pdfURL = URL.createObjectURL(file);
+        const loadingTask = pdfjsLib.getDocument(pdfURL);
+        const pdf = await loadingTask.promise;
+        let combinedText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const viewport = page.getViewport({ scale: 2 });
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          await page.render({ canvasContext: context, viewport: viewport }).promise;
+          document.getElementById("status1").textContent = `Texterkennung Seite ${i} ...`;
+          const { data: { text } } = await Tesseract.recognize(canvas, 'deu');
+          combinedText += text + "\n";
+        }
+        document.getElementById("ocrText").textContent = combinedText;
+        document.getElementById("status1").textContent = "✅ Texterkennung abgeschlossen.";
+      });
+    }
 
-  recognition.onresult = (event) => {
-    const gesprochenerText = event.results[0][0].transcript;
-    document.getElementById('status2').textContent = `Gehört: ${gesprochenerText}`;
-    micStatus.textContent = "✅ Aufnahme beendet";
-    micStatus.style.color = "green";
-    speak(`Du hast gesagt: ${gesprochenerText}. Ist das korrekt?`);
-  };
-
-  recognition.onerror = () => {
-    micStatus.textContent = "❌ Fehler bei der Spracherkennung";
-    micStatus.style.color = "red";
-  };
-
-  recognition.onend = () => {
-    setTimeout(() => {
-      micStatus.textContent = "";
-    }, 3000);
-  };
-
-  recognition.start();
-}
-
-function sendEmail() {
+    function sendEmail() {
       const empfaenger = document.getElementById("email").value;
       if (!empfaenger) {
         alert("Bitte gib eine E-Mail-Adresse ein.");
         return;
       }
-      const body = encodeURIComponent("Die Inventurdatei wurde exportiert. Bitte finde sie im Anhang oder lade sie hier herunter: inventur_ergebnis.xlsx");
+      const body = encodeURIComponent("Die Inventurdatei wurde exportiert. Bitte finde sie im Anhang oder lade sie hier herunter: inventur_ergebnis.csv");
       window.location.href = `mailto:${empfaenger}?subject=Inventurergebnis&body=${body}`;
     }
 
-    function saveBackup() {
-      const daten = JSON.stringify(artikelDaten, null, 2);
-      const blob = new Blob([daten], { type: "application/json" });
+    function exportExcel() {
+      let csv = "Artikel Nr.;Alt;Bezeichnung;Menge\n";
+      for (const [neu, val] of Object.entries(artikelDaten)) {
+        csv += `${neu};${val.alt};${val.name};${val.menge}\n`;
+      }
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "inventur_backup.json";
+      a.download = "inventur_ergebnis.csv";
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function restoreBackup(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const daten = JSON.parse(e.target.result);
-          if (typeof daten === 'object') {
-            artikelDaten = daten;
-            alert("Backup erfolgreich geladen.");
-          } else {
-            throw new Error();
-          }
-        } catch {
-          alert("Ungültige Backup-Datei.");
-        }
-      };
-      reader.readAsText(file);
+      document.body.removeChild(a);
     }
   </script>
 </body>
